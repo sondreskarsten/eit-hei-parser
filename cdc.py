@@ -28,6 +28,8 @@ import pyarrow.parquet as pq
 from google.cloud import storage as gcs_lib
 
 
+TRACKED_FIELDS = ["phase1_amount", "phase2_amount", "call_text", "project_strand"]
+
 SNAPSHOT_SCHEMA = pa.schema([
     ("project_slug", pa.string()),
     ("partner_institution_id", pa.int32()),
@@ -109,10 +111,14 @@ class EitHeiCDC:
         if t is None:
             return {}
         d = t.to_pydict()
-        return {
-            (d["project_slug"][i], d["partner_institution_id"][i]): d["content_hash"][i]
-            for i in range(t.num_rows)
-        }
+        result = {}
+        for i in range(t.num_rows):
+            key = (d["project_slug"][i], d["partner_institution_id"][i])
+            result[key] = {"content_hash": d["content_hash"][i]}
+            for f in TRACKED_FIELDS:
+                if f in d:
+                    result[key][f] = d[f][i]
+        return result
 
     def _load_pool(self):
         t = self._read_parquet(self._gcs_path("cdc", "pool.parquet"))
@@ -140,8 +146,6 @@ class EitHeiCDC:
         for row in resolved_rows:
             key = (row["project_slug"], row["partner_institution_id"])
             h = row["content_hash"]
-            old_h = old_snaps.get(key)
-
             new_snaps[key] = {
                 "project_slug": row["project_slug"],
                 "partner_institution_id": row["partner_institution_id"],
