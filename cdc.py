@@ -187,7 +187,7 @@ class EitHeiCDC:
                 "event_subtype": subtype,
                 "summary": summary,
                 "changed_fields": changed_fields,
-                "valid_time": run_date,
+                "valid_time": row.get("project_modified", run_date)[:10] if row.get("project_modified") else run_date,
                 "detected_time": detected_time,
                 "details_json": json.dumps(details, ensure_ascii=False),
                 "source_run_mode": run_mode,
@@ -205,21 +205,23 @@ class EitHeiCDC:
                     "n_participations": 1,
                 }
 
+        if run_mode != "bootstrap":
+            for key, old_h in old_snaps.items():
+                if key not in new_snaps:
+                    changelog_rows.append({
+                        "orgnr": "", "document_id": f"eit-hei-{key[0]}-{key[1]}",
+                        "data_source": "eit_hei", "event_type": "disappeared",
+                        "event_subtype": "eit_hei_participation_ended",
+                        "summary": f"Participation ended: {key[0]}",
+                        "changed_fields": None, "valid_time": run_date, "detected_time": detected_time,
+                        "details_json": None, "source_run_mode": run_mode, "run_id": run_id,
+                    })
+
         if changelog_rows:
             cl_table = pa.Table.from_pylist(changelog_rows, schema=CHANGELOG_SCHEMA)
             self._write_parquet(cl_table, self._gcs_path("cdc", "changelog", f"{run_date}.parquet"))
 
         snap_rows = list(new_snaps.values())
-        for key, old_h in old_snaps.items():
-            if key not in new_snaps:
-                snap_rows.append({
-                    "project_slug": key[0],
-                    "partner_institution_id": key[1],
-                    "orgnr": "",
-                    "partner_name": "",
-                    "content_hash": old_h,
-                    "is_lead_partner": False,
-                })
         if snap_rows:
             snap_table = pa.Table.from_pylist(snap_rows, schema=SNAPSHOT_SCHEMA)
             self._write_parquet(snap_table, self._gcs_path("cdc", "snapshots.parquet"))

@@ -131,7 +131,8 @@ def parse_projects(projects, partner_lookup, enheter_lookup=None):
                 "phase1_amount": acf.get("phase1_amount", ""),
                 "phase2_amount": acf.get("phase2_amount", ""),
                 "summary": acf.get("summary", ""),
-                "content_hash": content_hash(slug, partner_name, acf),
+                "project_modified": proj.get("modified", ""),
+            "content_hash": content_hash(slug, partner_name, acf),
             }
 
             if orgnr:
