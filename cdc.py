@@ -146,7 +146,7 @@ class EitHeiCDC:
         for row in resolved_rows:
             key = (row["project_slug"], row["partner_institution_id"])
             h = row["content_hash"]
-            new_snaps[key] = {
+            snap_entry = {
                 "project_slug": row["project_slug"],
                 "partner_institution_id": row["partner_institution_id"],
                 "orgnr": row["orgnr"],
@@ -154,18 +154,20 @@ class EitHeiCDC:
                 "content_hash": h,
                 "is_lead_partner": row["is_lead_partner"],
             }
+            for f in TRACKED_FIELDS:
+                snap_entry[f] = str(row.get(f) or "")
+            new_snaps[key] = snap_entry
 
-            if run_mode == "bootstrap":
+            old_entry = old_snaps.get(key)
+
+            if run_mode == "bootstrap" or old_entry is None:
                 event_type = "new"
                 changed_fields = None
                 new_count += 1
-            elif old_h is None:
-                event_type = "new"
-                changed_fields = None
-                new_count += 1
-            elif old_h != h:
+            elif old_entry["content_hash"] != h:
                 event_type = "modified"
-                changed_fields = json.dumps(["content_hash"])
+                diffs = [f for f in TRACKED_FIELDS if str(row.get(f) or "") != str(old_entry.get(f) or "")]
+                changed_fields = json.dumps(diffs) if diffs else json.dumps(["content_hash"])
                 mod_count += 1
             else:
                 continue
@@ -222,7 +224,7 @@ class EitHeiCDC:
                 }
 
         if run_mode != "bootstrap":
-            for key, old_h in old_snaps.items():
+            for key, old_entry in old_snaps.items():
                 if key not in new_snaps:
                     changelog_rows.append({
                         "orgnr": "", "document_id": f"eit-hei-{key[0]}-{key[1]}",
