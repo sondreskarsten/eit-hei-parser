@@ -205,6 +205,7 @@ class EitHeiCDC:
                 "event_subtype": subtype,
                 "summary": summary,
                 "changed_fields": changed_fields,
+                # REVIEW: valid_time = WP modified timestamp. State register diffed like enheter — should be snapshot date. See valid_time_audit.md
                 "valid_time": row.get("project_modified", run_date)[:10] if row.get("project_modified") else run_date,
                 "detected_time": detected_time,
                 "details_json": json.dumps(details, ensure_ascii=False),
